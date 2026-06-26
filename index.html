@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>🧱 BlockBlast · Lego Edition</title>
+    <style>
+        /* ---------- RESET & GLOBAL ---------- */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #1a1a2e, #0d0d1a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            padding: 16px;
+        }
+        .game-wrapper {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            border-radius: 48px 48px 32px 32px;
+            padding: 24px 20px 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 215, 0, 0.15);
+        }
+
+        /* ---------- HEADER ---------- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 8px 16px 8px;
+            color: #eee;
+            text-shadow: 0 2px 4px #00000080;
+        }
+        .score-box {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 6px 18px;
+            border-radius: 40px;
+            border: 1px solid #f0e68c;
+            font-weight: bold;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            color: #ffe484;
+        }
+        .score-box span {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-right: 6px;
+        }
+        .music-toggle {
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            color: #ddd;
+            font-size: 1.8rem;
+            cursor: pointer;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            transition: 0.2s;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .music-toggle:hover {
+            background: rgba(255, 215, 0, 0.2);
+            transform: scale(1.05);
+        }
+
+        /* ---------- BOARD ---------- */
+        .board-container {
+            background: #1e1e2f;
+            border-radius: 32px;
+            padding: 12px;
+            box-shadow: inset 0 -8px 0 #0a0a12, inset 0 8px 12px rgba(255, 255, 255, 0.03);
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            aspect-ratio: 1 / 1;
+            gap: 3px;
+            background: #14141e;
+            border-radius: 20px;
+            padding: 4px;
+        }
+        .cell {
+            background: #28283a;
+            border-radius: 6px;
+            transition: background 0.12s, transform 0.08s;
+            aspect-ratio: 1 / 1;
+            /* Lego stud pattern via radial gradient */
+            background-image: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15) 2px, transparent 2px),
+                              radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.08) 2px, transparent 2px);
+            background-size: 100% 100%;
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4);
+        }
+        .cell.filled {
+            border-radius: 4px;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.2);
+            /* Lego glossy feel */
+            background-blend-mode: overlay;
+            transform: scale(0.96);
+            transition: 0.1s;
+        }
+        /* individual colour classes – will be applied via JS */
+        .cell.color-0 { background-color: #f94144; } /* red */
+        .cell.color-1 { background-color: #f3722c; } /* orange */
+        .cell.color-2 { background-color: #f8961e; } /* yellow */
+        .cell.color-3 { background-color: #90be6d; } /* green */
+        .cell.color-4 { background-color: #43aa8b; } /* teal */
+        .cell.color-5 { background-color: #577590; } /* blue */
+        .cell.color-6 { background-color: #7209b7; } /* purple */
+        .cell.color-7 { background-color: #f15bb5; } /* pink */
+        .cell.highlight {
+            background: rgba(255, 215, 0, 0.25) !important;
+            border: 1px dashed #ffd700;
+            transform: scale(1.02);
+        }
+
+        /* ---------- PIECE SELECTOR ---------- */
+        .pieces-area {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 40px;
+            min-height: 90px;
+        }
+        .piece-slot {
+            background: #1e1e2f;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: inset 0 -4px 0 #0a0a12;
+            cursor: pointer;
+            transition: 0.15s;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+        }
+        .piece-slot:hover {
+            border-color: #ffd70099;
+            transform: scale(1.05);
+        }
+        .piece-slot.active {
+            border-color: #ffd700;
+            background: #2a2a3e;
+            box-shadow: 0 0 20px #ffd70040;
+        }
+        .piece-slot canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: crisp-edges;
+        }
+
+        /* ---------- BUTTONS ---------- */
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            gap: 12px;
+        }
+        .btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #ddd;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.15s;
+            backdrop-filter: blur(4px);
+            flex: 1;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+        .btn:hover {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: #ffd700;
+            color: #fff;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ---------- RESPONSIVE ---------- */
+        @media (max-width: 500px) {
+            .game-wrapper { padding: 16px; }
+            .piece-slot { width: 60px; height: 60px; }
+            .score-box { font-size: 1.2rem; padding: 4px 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-wrapper">
+    <!-- HEADER -->
+    <div class="header">
+        <div class="score-box"><span>🏆</span><span id="scoreDisplay">0</span></div>
+        <button class="music-toggle" id="musicBtn" title="Toggle music">🔊</button>
+    </div>
+
+    <!-- BOARD -->
+    <div class="board-container">
+        <div id="board"></div>
+    </div>
+
+    <!-- PIECES -->
+    <div class="pieces-area" id="piecesContainer"></div>
+
+    <!-- ACTIONS -->
+    <div class="actions">
+        <button class="btn" id="rotateBtn">🔄 Rotate</button>
+        <button class="btn" id="resetBtn">🔄 New Game</button>
+    </div>
+</div>
+
+<!-- AUDIO (background music) -->
+<audio id="bgMusic" loop preload="auto">
+    <!-- Replace src with your own chill track – this is a free lofi from Pixabay -->
+    <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=chill-lofi-112191.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+</audio>
+
+<script>
+    // ============================================================
+    //  BLOCKBLAST · LEGO EDITION  –  Full Game Logic
+    // ============================================================
+
+    // ---------- CONSTANTS ----------
+    const BOARD_SIZE = 8;
+    const COLORS = [0,1,2,3,4,5,6,7]; // mapped to CSS classes
+
+    // ----- All piece shapes (relative coordinates) -----
+    const SHAPES = [
+        // monomino
+        [[0,0]],
+        // domino
+        [[0,0],[1,0]],
+        // L-tromino
+        [[0,0],[1,0],[0,1]],
+        // straight tri
+        [[0,0],[1,0],[2,0]],
+        // square
+        [[0,0],[1,0],[0,1],[1,1]],
+        // T-tetromino
+        [[0,0],[1,0],[2,0],[1,1]],
+        // L-tetromino
+        [[0,0],[1,0],[2,0],[2,1]],
+        // J-tetromino
+        [[0,0],[1,0],[2,0],[0,1]],
+        // S-tetromino
+        [[1,0],[2,0],[0,1],[1,1]],
+        // Z-tetromino
+        [[0,0],[1,0],[1,1],[2,1]],
+        // I-tetromino
+        [[0,0],[1,0],[2,0],[3,0]],
+        // O-tetromino (already have square)
+        // plus more shapes to reach 21
+        [[0,0],[0,1],[1,1],[1,2]], // Z-ish
+        [[0,0],[1,0],[1,1],[2,1]], // S-ish
+        [[0,0],[1,0],[2,0],[2,1],[1,1]], // P
+        [[0,0],[1,0],[0,1],[0,2]], // L-tri
+        [[0,0],[1,0],[1,1],[1,2]], // J-tri
+        [[0,0],[1,0],[2,0],[0,1],[2,1]], // U
+        [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], // 2x3
+        [[0,0],[1,0],[0,1],[1,1],[2,1]], // P with extra
+        [[0,0],[1,0],[2,0],[3,0],[0,1]], // L with extra
+        [[0,0],[1,0],[0,1],[0,2],[1,2]], // Z extended
+    ];
+
+    // ---------- STATE ----------
+    let board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(-1));
+    let score = 0;
+    let availablePieces = []; // array of { shape, color }
+    let selectedIndex = -1; // index in availablePieces
+    let nextPieceIndex = 0; // for cycling
+
+    // DOM refs
+    const boardEl = document.getElementById('board');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const piecesContainer = document.getElementById('piecesContainer');
+    const musicBtn = document.getElementById('musicBtn');
+    const bgAudio = document.getElementById('bgMusic');
+    const rotateBtn = document.getElementById('rotateBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // ---------- UTILITY ----------
+    function randomColor() {
+        return COLORS[Math.floor(Math.random() * COLORS.length)];
+    }
+
+    // Clone shape
+    function cloneShape(shape) {
+        return shape.map(cell => [...cell]);
+    }
+
+    // Rotate shape 90° clockwise
+    function rotateShape(shape) {
+        // find bounding box
+        let maxX = 0, maxY = 0;
+        for (let [x,y] of shape) {
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+        // rotate: (x,y) -> (y, maxX - x)
+        return shape.map(([x,y]) => [y, maxX - x]);
+    }
+
+    // Check if shape can be placed at (row, col)
+    function canPlace(shape, row, col) {
+        for (let [dx, dy] of shape) {
+            const r = row + dy;
+            const c = col + dx;
+            if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) return false;
+            if (board[r][c] !== -1) return false;
+        }
+        return true;
+    }
+
+    // Place shape on board
+    function placeShape(shape, row, col, color) {
+        for (let [dx, dy] of shape) {
+            const r = row + dy;
+            const c = col + dx;
+            board[r][c] = color;
+        }
+    }
+
+    // Clear full lines and return count
+    function clearLines() {
+        let cleared = 0;
+        // rows
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            if (board[r].every(cell => cell !== -1)) {
+                board[r].fill(-1);
+                cleared++;
+            }
+        }
+        // columns
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            let full = true;
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                if (board[r][c] === -1) { full = false; break; }
+            }
+            if (full) {
+                for (let r = 0; r < BOARD_SIZE; r++) board[r][c] = -1;
+                cleared++;
+            }
+        }
+        return cleared;
+    }
+
+    // Generate a random piece (shape + color)
+    function generatePiece() {
+        const shapeIdx = Math.floor(Math.random() * SHAPES.length);
+        const shape = cloneShape(SHAPES[shapeIdx]);
+        return { shape, color: randomColor() };
+    }
+
+    // Check if any piece can be placed anywhere
+    function hasValidMoves() {
+        for (let piece of availablePieces) {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (canPlace(piece.shape, r, c)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // ---------- RENDER ----------
+    function renderBoard() {
+        boardEl.innerHTML = '';
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                const val = board[r][c];
+                if (val !== -1) {
+                    cell.classList.add('filled', `color-${val}`);
+                }
+                // store coordinates for click
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                boardEl.appendChild(cell);
+            }
+        }
+        // attach click listeners for placement
+        document.querySelectorAll('#board .cell').forEach(el => {
+            el.addEventListener('click', onCellClick);
+        });
+        // highlight if piece selected
+        if (selectedIndex !== -1) {
+            // we can highlight possible placements (optional)
+        }
+        updateScore();
+    }
+
+    function renderPieces() {
+        piecesContainer.innerHTML = '';
+        availablePieces.forEach((piece, idx) => {
+            const slot = document.createElement('div');
+            slot.className = 'piece-slot';
+            if (idx === selectedIndex) slot.classList.add('active');
+
+            // Draw shape on canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            // find bounding box
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (let [x,y] of piece.shape) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+            const w = maxX - minX + 1;
+            const h = maxY - minY + 1;
+            const blockSize = Math.min(64 / w, 64 / h) * 0.9;
+            const offsetX = (64 - blockSize * w) / 2;
+            const offsetY = (64 - blockSize * h) / 2;
+
+            // draw each block with lego style
+            for (let [x,y] of piece.shape) {
+                const px = offsetX + (x - minX) * blockSize;
+                const py = offsetY + (y - minY) * blockSize;
+                const colorClass = `color-${piece.color}`;
+                const computedColor = getComputedStyle(document.createElement('div')).getPropertyValue('--cell-color');
+                // we'll use a fixed palette
+                const palette = ['#f94144','#f3722c','#f8961e','#90be6d','#43aa8b','#577590','#7209b7','#f15bb5'];
+                const fill = palette[piece.color % palette.length];
+                // round rect
+                const r = blockSize * 0.2;
+                ctx.beginPath();
+                ctx.roundRect(px, py, blockSize, blockSize, r);
+                ctx.fillStyle = fill;
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetY = 2;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // stud
+                ctx.beginPath();
+                ctx.arc(px + blockSize*0.3, py + blockSize*0.3, blockSize*0.12, 0, 2*Math.PI);
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(px + blockSize*0.7, py + blockSize*0.7, blockSize*0.08, 0, 2*Math.PI);
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.fill();
+            }
+            slot.appendChild(canvas);
+            slot.dataset.idx = idx;
+            slot.addEventListener('click', () => {
+                if (selectedIndex === idx) {
+                    selectedIndex = -1;
+                } else {
+                    selectedIndex = idx;
+                }
+                renderPieces();
+                renderBoard();
+            });
+            piecesContainer.appendChild(slot);
+        });
+    }
+
+    // Helper roundRect
+    CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
+        if (w < 2*r) r = w/2;
+        if (h < 2*r) r = h/2;
+        this.moveTo(x+r, y);
+        this.arcTo(x+w, y, x+w, y+h, r);
+        this.arcTo(x+w, y+h, x, y+h, r);
+        this.arcTo(x, y+h, x, y, r);
+        this.arcTo(x, y, x+w, y, r);
+        this.closePath();
+        return this;
+    };
+
+    function updateScore() {
+        scoreDisplay.textContent = score;
+    }
+
+    // ---------- GAME ACTIONS ----------
+    function onCellClick(e) {
+        if (selectedIndex === -1) return;
+        const row = parseInt(e.currentTarget.dataset.row);
+        const col = parseInt(e.currentTarget.dataset.col);
+        const piece = availablePieces[selectedIndex];
+        if (!piece) return;
+        if (canPlace(piece.shape, row, col)) {
+            // place
+            placeShape(piece.shape, row, col, piece.color);
+            // remove piece
+            availablePieces.splice(selectedIndex, 1);
+            selectedIndex = -1;
+            // clear lines
+            const cleared = clearLines();
+            if (cleared > 0) {
+                score += cleared * 50 + (cleared === 1 ? 10 : 0);
+            } else {
+                score += 10; // per block placed? we'll add small
+            }
+            // check if game over
+            if (availablePieces.length === 0 || !hasValidMoves()) {
+                // refill pieces
+                refillPieces();
+                // if still no moves, game over
+                if (!hasValidMoves()) {
+                    alert('Game Over! 🎉 Final Score: ' + score);
+                    resetGame();
+                    return;
+                }
+            }
+            renderBoard();
+            renderPieces();
+            updateScore();
+        } else {
+            // invalid placement – maybe flash
+            e.currentTarget.style.background = 'rgba(255,0,0,0.3)';
+            setTimeout(() => renderBoard(), 200);
+        }
+    }
+
+    function refillPieces() {
+        availablePieces = [];
+        for (let i = 0; i < 3; i++) {
+            availablePieces.push(generatePiece());
+        }
+        selectedIndex = -1;
+    }
+
+    function resetGame() {
+        board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(-1));
+        score = 0;
+        refillPieces();
+        renderBoard();
+        renderPieces();
+        updateScore();
+    }
+
+    // Rotate selected piece
+    function rotateSelected() {
+        if (selectedIndex === -1) return;
+        const piece = availablePieces[selectedIndex];
+        if (!piece) return;
+        piece.shape = rotateShape(piece.shape);
+        // re-render
+        renderPieces();
+        renderBoard();
+    }
+
+    // ---------- MUSIC ----------
+    let musicPlaying = true;
+    musicBtn.addEventListener('click', () => {
+        if (musicPlaying) {
+            bgAudio.pause();
+            musicBtn.textContent = '🔇';
+        } else {
+            bgAudio.play().catch(() => {});
+            musicBtn.textContent = '🔊';
+        }
+        musicPlaying = !musicPlaying;
+    });
+
+    // ---------- INIT ----------
+    function init() {
+        resetGame();
+        // try to play music
+        bgAudio.volume = 0.3;
+        bgAudio.play().catch(() => {
+            // autoplay blocked – user can click toggle
+        });
+        // rotate button
+        rotateBtn.addEventListener('click', rotateSelected);
+        resetBtn.addEventListener('click', resetGame);
+    }
+
+    init();
+</script>
+</body>
+</html>
